@@ -14,6 +14,7 @@ Possible options:
         -t | --test             Test mode: creates all intermediate files without submitting to a queue.
 	-i | --indir		Directory with input tif images to process; default current directory.
         -o | --outdir           Directory with output tif images with probabilities; defalut TIFFs_prob.
+	-s | --spatt		Search pattern for image files; default \"*.tif\".		
 	-c | --reqcpu		Required number of cores; default 8.
 	-m | --reqmem           Required memory per cpu; default 12GB.
         -e | --reqtime          Required time per task; default 6h.
@@ -31,20 +32,17 @@ fi
 # User home directory
 USERHOMEDIR=`eval echo "~$USER"`
 
-# Directory with CellProfiler install
-INSTDIR=/opt/local/ilastik-1.3.2rc2-Linux
-
-# Path to CellProfiler binary
+# Path to Ilastik binary
 BINPATH=/opt/local/ilastik-1.3.2rc2-Linux/run_ilastik.sh
-
-# Name of the directory to store temporary files
-TMPDIR=/tmp
 
 # Directory with images to process
 INDIR=.
 
 # Directory to store output: images with probabilities
 OUTDIR=TIFFs_prob
+
+# Search pattern for input images
+SPATT=*.tif
 
 # Required number of cores
 REQCPU=8
@@ -69,7 +67,7 @@ SLOUT=slurm.out
 mkdir -p $SLOUT
 
 ## Read arguments
-TEMP=`getopt -o hti:o:c:m:e:p: --long help,test,indir:,outdir:,reqcpu:,reqmem:,reqtime:,partition: -n 'runiljob.sh' -- "$@"`
+TEMP=`getopt -o hti:o:s:c:m:e:p: --long help,test,indir:,outdir:,spatt:,reqcpu:,reqmem:,reqtime:,partition: -n 'runiljob.sh' -- "$@"`
 eval set -- "$TEMP"
 
 # extract options and their arguments into variables.
@@ -89,6 +87,11 @@ while true ; do
             case "$2" in
                 "") shift 2 ;;
                 *) OUTDIR=$2 ; shift 2 ;;
+            esac ;;
+        -s|--spatt)
+            case "$2" in
+                "") shift 2 ;;
+                *) SPATT=$2 ; shift 2 ;;
             esac ;;
         -c|--reqcpu)
             case "$2" in
@@ -120,18 +123,27 @@ done
 
 ## Submit to SLURM queue
 
+# create directory for output images with probabilities
+mkdir -p $OUTDIR
+
 # Get the number of files/tasks
-nFILES=`find $INDIR -type f -name "*.tif" -o -name "*.tiff" |wc -l`
+echo ""
+nFILES=`find $INDIR -type f -name $SPATT |wc -l`
 echo "Number of tasks = $nFILES"
 
+# Parameters of the analysis
+echo "Number of cores per task = $REQCPU"
+echo "Memory per task = $REQMEM MB"
+echo "Required time for the job = $REQTIME (h:m:s)"
+echo ""
 
 # Create a script that will be executed by sbatch
-FARRAY=file4sbatch.sh
+FARRAY=arrayjobs.sh
 
 echo "#!/bin/bash" > $FARRAY
 
 # Setting params for Slurm
-echo "#SBATCH --job-name=Ilastik" >> $FARRAY
+echo "#SBATCH --job-name=ilastik" >> $FARRAY
 echo "#SBATCH --array=1-$nFILES" >> $FARRAY
 echo "#SBATCH --cpus-per-task=$REQCPU" >> $FARRAY
 echo "#SBATCH --mem=$REQMEM" >> $FARRAY
@@ -146,10 +158,10 @@ echo "" >> $FARRAY
 #echo "" >> $FARRAY
 
 # get the file name to process: list directory and take n-th element given by SLURM_ARRAY_TASK_ID
-echo "arrayfile=\`find $INDIR -name \"*.tif\" -o -name \"*.tiff\" -type f | awk -v line=\$SLURM_ARRAY_TASK_ID '{if (NR == line) print \$0}' \`" >> $FARRAY
+echo "arrayfile=\`find $INDIR -name \"$SPATT\" -type f | awk -v line=\$SLURM_ARRAY_TASK_ID '{if (NR == line) print \$0}' \`" >> $FARRAY
 
 # run Ilastik
-echo "run_ilastik.sh 	--headless \\
+echo "$BINPATH 	--headless \\
 		--readonly=1 \\
 		--project $1 \\
 		--output_format=\"tiff sequence\" \\
@@ -164,7 +176,7 @@ echo "run_ilastik.sh 	--headless \\
 
 ## Submit jobs to a queue
 if [ $TST -eq 1 ]; then
-	echo "Test mode ON, jobs were not submitted."
+	echo "Test mode ON, jobs were not submitted!"
 else
 	echo "Submitting jobs..."
 	sbatch $FARRAY
