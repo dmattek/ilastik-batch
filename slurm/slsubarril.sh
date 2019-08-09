@@ -33,7 +33,7 @@ fi
 USERHOMEDIR=`eval echo "~$USER"`
 
 # Path to Ilastik binary
-BINPATH=/opt/local/ilastik-1.3.2rc2-Linux/run_ilastik.sh
+BINPATH=/opt/local/bin/run_ilastik.sh
 
 # Directory with images to process
 INDIR=.
@@ -48,7 +48,7 @@ SPATT=*.tif
 REQCPU=8
 
 # Required memory per task; default 4GB
-REQMEM=12288
+REQMEM=4096
 
 # Required time per task; default 6 hours
 REQTIME=6:00:00
@@ -96,7 +96,7 @@ while true ; do
         -c|--reqcpu)
             case "$2" in
                 "") shift 2 ;;
-                *) REQQPU=$2 ; shift 2 ;;
+                *) REQCPU=$2 ; shift 2 ;;
             esac ;;
         -m|--reqmem)
             case "$2" in
@@ -164,8 +164,8 @@ echo "arrayfile=\`find $INDIR -name \"$SPATT\" -type f | awk -v line=\$SLURM_ARR
 echo "$BINPATH 	--headless \\
 		--readonly=1 \\
 		--project $1 \\
-		--output_format=\"tiff sequence\" \\
-		--output_filename_format=$OUTDIR/{nickname}_{result_type}_{slice_index}.tiff \\
+		--output_format=\"multipage tiff\" \\
+		--output_filename_format=$OUTDIR/{nickname}.tiff \\
 		--export_dtype=uint16 \\
 		--output_axis_order=tcyx \\
 		--pipeline_result_drange=\"(0.0,1.0)\" \\
