@@ -18,7 +18,8 @@ Possible options:
 	-c | --reqcpu		Required number of cores; default 8.
 	-m | --reqmem           Required memory per cpu; default 12GB.
         -e | --reqtime          Required time per task; default 6h.
-        -p | --partition        Name of the slurm queue partition; default all."
+        -p | --partition        Name of the slurm queue partition; default all.
+	-b | --binpath 		Path to Ilastik binary; default /opt/local/bin/run_ilastik.sh"
 
 E_BADARGS=85
 
@@ -67,7 +68,7 @@ SLOUT=slurm.out
 mkdir -p $SLOUT
 
 ## Read arguments
-TEMP=`getopt -o hti:o:s:c:m:e:p: --long help,test,indir:,outdir:,spatt:,reqcpu:,reqmem:,reqtime:,partition: -n 'runiljob.sh' -- "$@"`
+TEMP=`getopt -o hti:o:s:c:m:e:p:b: --long help,test,indir:,outdir:,spatt:,reqcpu:,reqmem:,reqtime:,partition:,binpath: -n 'runiljob.sh' -- "$@"`
 eval set -- "$TEMP"
 
 # extract options and their arguments into variables.
@@ -113,6 +114,11 @@ while true ; do
                         "") shitf 2 ;;
                         *) SLPART=$2 ; shift 2 ;;
                 esac ;;
+        -b|--binpath)
+                case "$2" in
+                        "") shitf 2 ;;
+                        *) BINPATH=$2 ; shift 2 ;;
+                esac ;;
         --) shift ; break ;;
      *) echo "Internal error!" ; exit 1 ;;
     esac
@@ -128,7 +134,9 @@ mkdir -p $OUTDIR
 
 # Get the number of files/tasks
 echo ""
-nFILES=`find $INDIR -type f -name $SPATT |wc -l`
+echo Looking for "$SPATT" files in $INDIR folder
+echo ""
+nFILES=`find $INDIR -type f -name "$SPATT" |wc -l`
 echo "Number of tasks = $nFILES"
 
 # Parameters of the analysis
